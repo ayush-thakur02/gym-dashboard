@@ -1,7 +1,3 @@
-/* ══════════════════════════════════════════
-   Toast notification utility (shared)
-   ══════════════════════════════════════════ */
-
 function showToast(message, type = 'info', duration = 3500) {
     const container = document.getElementById('toast-container');
     if (!container) return;

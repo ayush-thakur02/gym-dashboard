@@ -1,27 +1,19 @@
-/* ══════════════════════════════════════════════════════
-   Payment Form Page — Add & Edit
-   ══════════════════════════════════════════════════════ */
-
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
 
     // Set default date to today
-    document.getElementById('p-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('p-date').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-    // Load plans from DB first
     await loadPlanOptions();
 
     if (id) {
-        // Edit mode
         document.getElementById('form-title').textContent = 'Edit Payment';
         document.getElementById('form-subtitle').textContent = 'Update payment details below';
         document.getElementById('mobile-title').textContent = 'Edit Payment';
-        // Hide phone field — can't change member on edit
         document.getElementById('phone-group').style.display = 'none';
         loadPayment(id);
     } else {
-        // Add mode — focus phone field
         document.getElementById('p-phone').focus();
     }
 
@@ -79,11 +71,9 @@ async function loadPayment(id) {
 
         document.getElementById('payment-id').value = p.ID;
         document.getElementById('p-date').value = p.Date ? p.Date.split('T')[0] : '';
-        // Re-populate select with saved value selected
         await loadPlanOptions(p.Money);
         document.getElementById('p-mode').value = p.Mode || 'UPI';
 
-        // Show member name in info bar
         if (p.Name) {
             document.getElementById('member-info-name').textContent = `${p.Name} — ${p.Phone}`;
             document.getElementById('member-info-bar').style.display = 'flex';

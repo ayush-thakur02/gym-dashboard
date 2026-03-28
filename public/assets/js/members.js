@@ -1,14 +1,9 @@
-/* ══════════════════════════════════════════════════════
-   Members Page
-   ══════════════════════════════════════════════════════ */
-
 const PAGE_SIZE = 25;
 let membersPage = 1;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadMembers();
 
-    // Live search with debounce
     let searchTimer;
     document.getElementById('members-search').addEventListener('input', () => {
         clearTimeout(searchTimer);

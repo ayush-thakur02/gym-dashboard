@@ -1,114 +1,81 @@
-/**
- * Data Cleanup Script — 44 Fitness Center
- *
- * Run once with:  node scripts/cleanup.js
- *
- * What it does:
- *  1. Creates the data_issues table if missing.
- *  2. Clears any previous issue records (fresh run).
- *  3. For every member:
- *     - Uppercases Name and Address (safe, always done).
- *     - Propagates the uppercased Name to payments + daily_entry.
- *     - Flags phone values that are NOT exactly 10 digits into data_issues
- *       — those records are NOT modified.
- */
-
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-const Database = require('better-sqlite3');
-const path = require('path');
+const mysql = require('mysql2/promise');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'gym.sqlite');
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+async function main() {
+    const pool = mysql.createPool({
+        host: process.env.DB_HOST || 'localhost',
+        port: Number(process.env.DB_PORT) || 3306,
+        database: process.env.DB_NAME,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        waitForConnections: true,
+        connectionLimit: 5,
+        dateStrings: true,
+    });
 
-// ── Ensure data_issues table exists ─────────────────────
-db.exec(`
-  CREATE TABLE IF NOT EXISTS data_issues (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    table_name  TEXT NOT NULL,
-    record_id   INTEGER NOT NULL,
-    issue_type  TEXT NOT NULL,
-    field_name  TEXT,
-    field_value TEXT,
-    notes       TEXT,
-    created_at  TEXT DEFAULT (datetime('now'))
-  );
-`);
+    const con = await pool.getConnection();
+    try {
+        await con.beginTransaction();
 
-// Clear previous run results
-db.prepare('DELETE FROM data_issues').run();
-console.log('🧹  Cleared previous data_issues entries.');
+        await con.execute('DELETE FROM data_issues');
+        console.log('Cleared previous data_issues entries.');
 
-// ── Prepared statements ──────────────────────────────────
-const insertIssue = db.prepare(
-    'INSERT INTO data_issues (table_name, record_id, issue_type, field_name, field_value, notes) VALUES (?, ?, ?, ?, ?, ?)'
-);
-const updateMember = db.prepare(
-    'UPDATE members SET Name = ?, Address = ? WHERE ID = ?'
-);
-const updatePaymentsName = db.prepare(
-    'UPDATE payments SET Name = ? WHERE Phone = ?'
-);
-const updateEntryName = db.prepare(
-    'UPDATE daily_entry SET Name = ? WHERE Phone = ?'
-);
+        const [members] = await con.execute('SELECT * FROM members');
+        let uppercaseFixed = 0;
+        let phonesFlagged = 0;
 
-// ── Process all members inside a single transaction ──────
-const members = db.prepare('SELECT * FROM members').all();
-let uppercaseFixed = 0;
-let phonesFlagged = 0;
+        for (const m of members) {
+            // ── Phone validation ─────────────────────────────
+            const phoneStr = String(m.Phone);
+            const phoneValid = /^\d{10}$/.test(phoneStr);
 
-const run = db.transaction(() => {
-    for (const m of members) {
-        // ── Phone validation ─────────────────────────────
-        const phoneStr = String(m.Phone);
-        const phoneValid = /^\d{10}$/.test(phoneStr);
+            if (!phoneValid) {
+                await con.execute(
+                    'INSERT INTO data_issues (table_name, record_id, issue_type, field_name, field_value, notes) VALUES (?, ?, ?, ?, ?, ?)',
+                    ['members', m.ID, 'INVALID_PHONE', 'Phone', phoneStr,
+                        `Phone "${phoneStr}" is not exactly 10 digits. Record left unchanged.`]
+                );
+                phonesFlagged++;
+                // Still uppercase name/address even for flagged records
+            }
 
-        if (!phoneValid) {
-            insertIssue.run(
-                'members',
-                m.ID,
-                'INVALID_PHONE',
-                'Phone',
-                phoneStr,
-                `Phone "${phoneStr}" is not exactly 10 digits. Record left unchanged.`
-            );
-            phonesFlagged++;
-            // Still uppercase name/address even for flagged records
+            // ── Uppercase name & address ─────────────────────
+            const newName = (m.Name || '').toUpperCase();
+            const newAddr = m.Address != null ? m.Address.toUpperCase() : null;
+
+            const nameChanged = newName !== m.Name;
+            const addrChanged = newAddr !== m.Address;
+
+            if (nameChanged || addrChanged) {
+                await con.execute('UPDATE members SET Name = ?, Address = ? WHERE ID = ?', [newName, newAddr, m.ID]);
+                uppercaseFixed++;
+            }
+
+            // Cascade name change to related tables
+            if (nameChanged) {
+                await con.execute('UPDATE payments SET Name = ? WHERE Phone = ?', [newName, m.Phone]);
+                await con.execute('UPDATE daily_entry SET Name = ? WHERE Phone = ?', [newName, m.Phone]);
+            }
         }
 
-        // ── Uppercase name & address ─────────────────────
-        const newName = (m.Name || '').toUpperCase();
-        const newAddr = m.Address != null ? m.Address.toUpperCase() : null;
+        await con.commit();
 
-        const nameChanged = newName !== m.Name;
-        const addrChanged = newAddr !== m.Address;
+        console.log(`\nCleanup complete.`);
+        console.log(`  Records processed    : ${members.length}`);
+        console.log(`  Name/Address fixed   : ${uppercaseFixed}`);
+        console.log(`  Phone issues flagged : ${phonesFlagged}`);
 
-        if (nameChanged || addrChanged) {
-            updateMember.run(newName, newAddr, m.ID);
-            uppercaseFixed++;
+        if (phonesFlagged > 0) {
+            console.log(`\n${phonesFlagged} record(s) have invalid phone numbers.`);
+            console.log(`  Open /dashboard/data-issues to review them.`);
         }
-
-        // Cascade name change to related tables
-        if (nameChanged) {
-            updatePaymentsName.run(newName, m.Phone);
-            updateEntryName.run(newName, m.Phone);
-        }
+    } catch (err) {
+        await con.rollback();
+        throw err;
+    } finally {
+        con.release();
+        await pool.end();
     }
-});
-
-run();
-
-// ── Summary ──────────────────────────────────────────────
-console.log(`\n✅  Cleanup complete.`);
-console.log(`   Records processed    : ${members.length}`);
-console.log(`   Name/Address fixed   : ${uppercaseFixed}`);
-console.log(`   Phone issues flagged : ${phonesFlagged}`);
-
-if (phonesFlagged > 0) {
-    console.log(`\n⚠️   ${phonesFlagged} record(s) have invalid phone numbers.`);
-    console.log(`    Open /dashboard/data-issues to review them.\n`);
 }
 
-db.close();
+main().catch(err => { console.error('Error:', err.message); process.exit(1); });

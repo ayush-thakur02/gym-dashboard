@@ -1,7 +1,3 @@
-/* ══════════════════════════════════════════════════════
-   Settings Page — Membership Plans Management
-   ══════════════════════════════════════════════════════ */
-
 let allPlans = [];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -118,12 +114,4 @@ async function deletePlan(planId) {
     } catch {
         showToast('Network error', 'error');
     }
-}
-
-function escHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }

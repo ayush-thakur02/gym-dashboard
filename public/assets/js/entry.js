@@ -1,7 +1,3 @@
-/* ══════════════════════════════════════════════════════
-   Daily Entry Page
-   ══════════════════════════════════════════════════════ */
-
 const PAGE_SIZE = 25;
 let entryPage = 1;
 let entryFilter = 'today';
@@ -19,25 +15,20 @@ document.addEventListener('DOMContentLoaded', () => {
         yearSelect.appendChild(opt);
     }
 
-    // Set current month
     document.getElementById('filter-month').value = String(new Date().getMonth() + 1);
 
-    // Set today's date
-    document.getElementById('filter-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('filter-date').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-    // Filter tab clicks
     document.querySelectorAll('.filter-tab').forEach((btn) => {
         btn.addEventListener('click', () => setEntryFilter(btn.dataset.filter, btn));
     });
 
-    // Search debounce
     let searchTimer;
     document.getElementById('entry-search').addEventListener('input', () => {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => loadEntry(), 300);
     });
 
-    // Date/month/year change
     document.getElementById('filter-date').addEventListener('change', loadEntry);
     document.getElementById('filter-month').addEventListener('change', loadEntry);
     document.getElementById('filter-year').addEventListener('change', loadEntry);
@@ -140,7 +131,7 @@ async function loadEntryChart(start) {
         } else {
             const date = entryFilter === 'date'
                 ? document.getElementById('filter-date').value
-                : new Date().toISOString().split('T')[0];
+                : new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
             const res = await fetch(`/api/stats/hourly?date=${date}`);
             if (!res.ok) return;

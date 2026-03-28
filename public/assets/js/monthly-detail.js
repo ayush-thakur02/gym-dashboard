@@ -1,7 +1,3 @@
-/* ══════════════════════════════════════════════════════
-   Monthly Detail Page
-   ══════════════════════════════════════════════════════ */
-
 document.addEventListener('DOMContentLoaded', () => {
     loadMonthlyDetail();
 });
@@ -18,7 +14,6 @@ async function loadMonthlyDetail() {
             return;
         }
 
-        // Summary totals
         const totalCheckins = rows.reduce((s, r) => s + r.checkins, 0);
         const totalPayments = rows.reduce((s, r) => s + r.payments, 0);
         const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
@@ -29,7 +24,6 @@ async function loadMonthlyDetail() {
         document.getElementById('total-revenue').textContent = fmtCurrency(totalRevenue);
         document.getElementById('avg-checkins').textContent = avgCheckins.toLocaleString();
 
-        // Table rows — newest month first
         const reversed = [...rows].reverse();
         const tbody = document.getElementById('detail-tbody');
         tbody.innerHTML = reversed.map((r) => {
@@ -38,7 +32,6 @@ async function loadMonthlyDetail() {
                 month: 'long', year: 'numeric',
             });
 
-            // Days in that month for avg calc
             const daysInMonth = new Date(+y, +m, 0).getDate();
             const avgDay = (r.checkins / daysInMonth).toFixed(1);
 

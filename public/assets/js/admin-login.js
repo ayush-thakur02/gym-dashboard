@@ -1,13 +1,8 @@
-/* ══════════════════════════════════════════
-   Admin Login Page
-   ══════════════════════════════════════════ */
-
-// Redirect if already authenticated
 (async () => {
     try {
         const res = await fetch('/api/auth/verify', { credentials: 'include' });
         if (res.ok) window.location.href = '/dashboard';
-    } catch { /* not logged in */ }
+    } catch { }
 })();
 
 async function login(e) {

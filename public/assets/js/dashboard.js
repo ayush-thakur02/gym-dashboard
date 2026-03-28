@@ -1,8 +1,3 @@
-/* ══════════════════════════════════════════════════════
-   Dashboard — Main SPA Controller
-   ══════════════════════════════════════════════════════ */
-
-// ── Auth guard ──────────────────────────────────────────
 (async () => {
     try {
         const res = await fetch('/api/auth/verify', { credentials: 'include' });
@@ -14,17 +9,14 @@
     }
 })();
 
-// ── Navigation ──────────────────────────────────────────
 let currentPage = 'overview';
 let hourlyChart = null;
 let monthlyChart = null;
 let entryChart = null;
 
-// ── Form page context ──────────────────────────────────
 let memberFormReturnPage = 'members';
 let paymentFormReturnPage = 'payments';
 
-// ── Pagination state ────────────────────────────────────
 let membersPage = 1;
 let paymentsPage = 1;
 let entryPage = 1;
@@ -93,7 +85,7 @@ function navigateTo(page) {
     else if (page === 'entry') initEntryPage();
 }
 
-// ── Mobile sidebar ──────────────────────────────────────
+
 document.getElementById('hamburger').addEventListener('click', openSidebar);
 document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
 
@@ -106,13 +98,11 @@ function closeSidebar() {
     document.getElementById('sidebar-overlay').classList.remove('active');
 }
 
-// ── Logout ──────────────────────────────────────────────
 document.getElementById('logout-btn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/admin';
 });
 
-// ── Helpers ─────────────────────────────────────────────
 function fmtDate(str) {
     if (!str) return '—';
     const d = new Date(str + 'T00:00:00');
@@ -150,21 +140,16 @@ const CHART_DEFAULTS = {
     maintainAspectRatio: false,
 };
 
-// ── Form back / cancel button wiring ───────────────────────
 document.getElementById('member-form-back-btn').addEventListener('click', () => navigateTo(memberFormReturnPage));
 document.getElementById('member-form-cancel-btn').addEventListener('click', () => navigateTo(memberFormReturnPage));
 document.getElementById('payment-form-back-btn').addEventListener('click', () => navigateTo(paymentFormReturnPage));
 document.getElementById('payment-form-cancel-btn').addEventListener('click', () => navigateTo(paymentFormReturnPage));
 
-// ══════════════════════════════════════════════════════════
-// OVERVIEW
-// ══════════════════════════════════════════════════════════
 async function loadOverview() {
     document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-IN', {
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
 
-    // Stats
     try {
         const res = await fetch('/api/stats');
         const data = await res.json();
@@ -172,13 +157,12 @@ async function loadOverview() {
         document.getElementById('stat-today').textContent = data.todayEntries.toLocaleString();
         document.getElementById('stat-revenue').textContent = fmtCurrency(data.monthlyRevenue);
         document.getElementById('stat-active').textContent = data.activeMembers.toLocaleString();
-    } catch { /* silent */ }
+    } catch { }
 
     loadExtendedStats();
 
-    // Hourly chart (today)
     try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const res = await fetch(`/api/stats/hourly?date=${today}`);
         const rows = await res.json();
 
@@ -211,9 +195,8 @@ async function loadOverview() {
             },
             options: { ...CHART_DEFAULTS },
         });
-    } catch { /* silent */ }
+    } catch { }
 
-    // Monthly trend chart
     try {
         const res = await fetch('/api/stats/monthly');
         const rows = await res.json();
@@ -243,7 +226,7 @@ async function loadOverview() {
             },
             options: { ...CHART_DEFAULTS },
         });
-    } catch { /* silent */ }
+    } catch { }
 }
 
 async function loadExtendedStats() {
@@ -255,13 +238,11 @@ async function loadExtendedStats() {
         const ext = await extRes.json();
         const expiring = await expRes.json();
 
-        // Second row of stat cards
         document.getElementById('stat-expiring').textContent = expiring.length.toLocaleString();
         document.getElementById('stat-new-members').textContent = ext.newThisMonth.toLocaleString();
         document.getElementById('stat-ytd-revenue').textContent = fmtCurrency(ext.ytdRevenue);
         document.getElementById('stat-avg-daily').textContent = ext.avgDailyCheckins;
 
-        // Expiring members list
         const expiringEl = document.getElementById('expiring-list');
         const badge = document.getElementById('expiring-count-badge');
         badge.textContent = `${expiring.length} member${expiring.length !== 1 ? 's' : ''}`;
@@ -298,7 +279,6 @@ async function loadExtendedStats() {
             }).join('');
         }
 
-        // Top active members list
         const topEl = document.getElementById('top-members-list');
         if (!ext.topMembers.length) {
             topEl.innerHTML = '<div class="mini-list-empty">No check-ins this month</div>';
@@ -316,12 +296,9 @@ async function loadExtendedStats() {
                 </div>`;
             }).join('');
         }
-    } catch { /* silent */ }
+    } catch { }
 }
 
-// ══════════════════════════════════════════════════════════
-// MEMBERS
-// ══════════════════════════════════════════════════════════
 async function loadMembers(page) {
     if (page === undefined) membersPage = 1;
     else membersPage = Math.max(1, page);
@@ -450,9 +427,7 @@ async function saveMember() {
     }
 }
 
-// ══════════════════════════════════════════════════════════
-// PAYMENTS
-// ══════════════════════════════════════════════════════════
+
 async function loadPayments(page) {
     if (page === undefined) paymentsPage = 1;
     else paymentsPage = Math.max(1, page);
@@ -506,7 +481,7 @@ function openAddPaymentForm() {
     document.getElementById('payment-id').value = '';
     document.getElementById('p-phone').value = '';
     document.getElementById('p-phone').disabled = false;
-    document.getElementById('p-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('p-date').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     document.getElementById('p-amount').value = '1500';
     document.getElementById('p-mode').value = 'UPI';
     navigateTo('payment-form');
@@ -562,9 +537,7 @@ async function savePayment() {
     }
 }
 
-// ══════════════════════════════════════════════════════════
-// DAILY ENTRY
-// ══════════════════════════════════════════════════════════
+
 let entryFilter = 'today';
 
 function initEntryPage() {
@@ -580,7 +553,7 @@ function initEntryPage() {
     document.getElementById('filter-month').value = String(new Date().getMonth() + 1);
 
     // Set today's date
-    document.getElementById('filter-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('filter-date').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
     loadEntry();
 }
@@ -616,10 +589,8 @@ async function loadEntry(page) {
         const data = await res.json();
         const rows = data.rows;
 
-        // Update badge with total count
         document.getElementById('entry-count-badge').textContent = `${data.total} entries`;
 
-        // Render table
         if (!rows.length) {
             tbody.innerHTML = `<tr><td colspan="4" class="table-empty">No entries found.</td></tr>`;
             document.getElementById('entry-pagination').innerHTML = '';
@@ -639,7 +610,6 @@ async function loadEntry(page) {
             renderPagination('entry-pagination', entryPage, data.total, PAGE_SIZE, 'loadEntry');
         }
 
-        // Draw chart
         await loadEntryChart(data.start, data.end);
     } catch {
         tbody.innerHTML = `<tr><td colspan="4" class="table-empty">Failed to load entries.</td></tr>`;
@@ -652,7 +622,6 @@ async function loadEntryChart(start, end) {
 
     try {
         if (entryFilter === 'month') {
-            // Daily counts for the month
             const [y, m] = start.split('-');
             const res = await fetch(`/api/entry/daily-counts?month=${+m}&year=${+y}`);
             const data = await res.json();
@@ -683,10 +652,9 @@ async function loadEntryChart(start, end) {
                 options: { ...CHART_DEFAULTS },
             });
         } else {
-            // Hourly for specific date / today
             const date = entryFilter === 'date'
                 ? document.getElementById('filter-date').value
-                : new Date().toISOString().split('T')[0];
+                : new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
             const res = await fetch(`/api/stats/hourly?date=${date}`);
             const rows = await res.json();
@@ -716,8 +684,7 @@ async function loadEntryChart(start, end) {
                 options: { ...CHART_DEFAULTS },
             });
         }
-    } catch { /* silent chart error */ }
+    } catch { }
 }
 
-// ── Initial load ─────────────────────────────────────────
 loadOverview();

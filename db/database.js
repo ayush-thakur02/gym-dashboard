@@ -1,106 +1,107 @@
-const Database = require('better-sqlite3');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'gym.sqlite');
-
-let db;
+let pool;
 
 function getDB() {
-    if (!db) {
-        db = new Database(DB_PATH);
-        db.pragma('journal_mode = WAL');
-        db.pragma('foreign_keys = ON');
+    if (!pool) {
+        pool = mysql.createPool({
+            host: process.env.DB_HOST || 'localhost',
+            port: Number(process.env.DB_PORT) || 3306,
+            database: process.env.DB_NAME,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            waitForConnections: true,
+            connectionLimit: 10,
+            queueLimit: 0,
+            timezone: '+05:30',
+            dateStrings: true,
+        });
     }
-    return db;
+    return pool;
 }
 
-function initDB() {
-    const database = getDB();
+async function initDB() {
+    const db = getDB();
 
-    database.exec(`
-    CREATE TABLE IF NOT EXISTS members (
-      ID INTEGER PRIMARY KEY AUTOINCREMENT,
-      Name TEXT NOT NULL,
-      Phone INTEGER UNIQUE NOT NULL,
-      Emergency_Phone INTEGER DEFAULT 0,
-      DOB TEXT,
-      Address TEXT
-    );
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS members (
+            ID INT NOT NULL AUTO_INCREMENT,
+            Name VARCHAR(50) DEFAULT NULL,
+            Phone BIGINT DEFAULT NULL,
+            Emergency_Phone BIGINT DEFAULT NULL,
+            DOB DATE DEFAULT NULL,
+            Address TEXT DEFAULT NULL,
+            PRIMARY KEY (ID),
+            UNIQUE KEY uq_members_phone (Phone)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
-    CREATE TABLE IF NOT EXISTS payments (
-      ID INTEGER PRIMARY KEY AUTOINCREMENT,
-      Name TEXT NOT NULL,
-      Date TEXT NOT NULL,
-      Phone INTEGER NOT NULL,
-      Mode TEXT NOT NULL,
-      Money INTEGER NOT NULL
-    );
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS payments (
+            ID INT NOT NULL AUTO_INCREMENT,
+            Name VARCHAR(50) NOT NULL,
+            Date DATE NOT NULL,
+            Phone BIGINT NOT NULL,
+            Mode VARCHAR(10) NOT NULL,
+            Money INT NOT NULL,
+            PRIMARY KEY (ID)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
-    CREATE TABLE IF NOT EXISTS daily_entry (
-      Sno INTEGER PRIMARY KEY AUTOINCREMENT,
-      Name TEXT NOT NULL,
-      Phone INTEGER NOT NULL,
-      Date TEXT NOT NULL,
-      Time TEXT NOT NULL
-    );
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS daily_entry (
+            Sno INT NOT NULL AUTO_INCREMENT,
+            Name VARCHAR(50) NOT NULL,
+            Phone BIGINT NOT NULL,
+            Date DATE NOT NULL,
+            Time TIME NOT NULL,
+            PRIMARY KEY (Sno)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
-    CREATE TABLE IF NOT EXISTS admins (
-      ID INTEGER PRIMARY KEY AUTOINCREMENT,
-      Username TEXT UNIQUE NOT NULL,
-      Password TEXT NOT NULL
-    );
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS admins (
+            ID INT NOT NULL AUTO_INCREMENT,
+            Username VARCHAR(100) NOT NULL,
+            Password VARCHAR(255) NOT NULL,
+            PRIMARY KEY (ID),
+            UNIQUE KEY uq_admins_username (Username)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
-    CREATE TABLE IF NOT EXISTS data_issues (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      table_name TEXT NOT NULL,
-      record_id INTEGER NOT NULL,
-      issue_type TEXT NOT NULL,
-      field_name TEXT,
-      field_value TEXT,
-      notes TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS data_issues (
+            id INT NOT NULL AUTO_INCREMENT,
+            table_name VARCHAR(50) NOT NULL,
+            record_id INT NOT NULL,
+            issue_type VARCHAR(50) NOT NULL,
+            field_name VARCHAR(50) DEFAULT NULL,
+            field_value TEXT DEFAULT NULL,
+            notes TEXT DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
-    CREATE TABLE IF NOT EXISTS plans (
-      ID INTEGER PRIMARY KEY AUTOINCREMENT,
-      label TEXT NOT NULL,
-      amount INTEGER NOT NULL,
-      duration_days INTEGER NOT NULL,
-      category TEXT NOT NULL DEFAULT 'General',
-      is_active INTEGER NOT NULL DEFAULT 1
-    );
-  `);
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS plans (
+            ID INT NOT NULL AUTO_INCREMENT,
+            label VARCHAR(100) NOT NULL,
+            amount INT NOT NULL,
+            duration_days INT NOT NULL,
+            category VARCHAR(100) NOT NULL DEFAULT 'General',
+            is_active TINYINT NOT NULL DEFAULT 1,
+            PRIMARY KEY (ID)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
 
-    // Migrate: drop UNIQUE constraint on plans.amount if it exists
-    const plansInfo = database.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='plans'").get();
-    if (plansInfo && /amount\s+INTEGER\s+NOT\s+NULL\s+UNIQUE/i.test(plansInfo.sql)) {
-        database.exec(`
-            CREATE TABLE plans_new (
-              ID INTEGER PRIMARY KEY AUTOINCREMENT,
-              label TEXT NOT NULL,
-              amount INTEGER NOT NULL,
-              duration_days INTEGER NOT NULL,
-              category TEXT NOT NULL DEFAULT 'General',
-              is_active INTEGER NOT NULL DEFAULT 1
-            );
-            INSERT INTO plans_new SELECT * FROM plans;
-            DROP TABLE plans;
-            ALTER TABLE plans_new RENAME TO plans;
-        `);
-        console.log('Migrated plans table: removed UNIQUE constraint on amount');
-    }
+    const [[{ c: memberCount }]] = await db.execute('SELECT COUNT(*) AS c FROM members');
+    if (memberCount === 0) await seedFromSQL(db);
 
-    // Seed only when tables are empty
-    const memberCount = database.prepare('SELECT COUNT(*) AS c FROM members').get().c;
-    if (memberCount === 0) {
-        console.log('Seeding database from SQL file...');
-        seedFromSQL(database);
-    }
-
-    // Seed default plans when plans table is empty
-    const planCount = database.prepare('SELECT COUNT(*) AS c FROM plans').get().c;
+    const [[{ c: planCount }]] = await db.execute('SELECT COUNT(*) AS c FROM plans');
     if (planCount === 0) {
         const seedPlans = [
             { label: '1 Month', amount: 1500, duration_days: 30, category: 'Single — Old' },
@@ -121,83 +122,49 @@ function initDB() {
             { label: '6 Months', amount: 16001, duration_days: 180, category: 'Couple — New' },
             { label: '1 Year', amount: 25001, duration_days: 365, category: 'Couple — New' },
         ];
-        const insertPlan = database.prepare(
-            'INSERT INTO plans (label, amount, duration_days, category) VALUES (?, ?, ?, ?)'
-        );
         for (const p of seedPlans) {
-            insertPlan.run(p.label, p.amount, p.duration_days, p.category);
+            await db.execute(
+                'INSERT INTO plans (label, amount, duration_days, category) VALUES (?, ?, ?, ?)',
+                [p.label, p.amount, p.duration_days, p.category]
+            );
         }
-        console.log(`Seeded ${seedPlans.length} default plans`);
     }
 
-    // Ensure default admin exists and password matches env
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const adminHash = bcrypt.hashSync(adminPassword, 12);
 
-    const adminExists = database.prepare('SELECT 1 FROM admins WHERE Username = ?').get(adminUsername);
-    if (!adminExists) {
-        database
-            .prepare('INSERT OR IGNORE INTO admins (Username, Password) VALUES (?, ?)')
-            .run(adminUsername, adminHash);
-        console.log(`Default admin created → username: ${adminUsername}`);
+    const [[adminRow]] = await db.execute('SELECT 1 FROM admins WHERE Username = ?', [adminUsername]);
+    if (!adminRow) {
+        await db.execute('INSERT IGNORE INTO admins (Username, Password) VALUES (?, ?)', [adminUsername, adminHash]);
     } else {
-        // Always sync password from env on startup
-        database
-            .prepare('UPDATE admins SET Password = ? WHERE Username = ?')
-            .run(adminHash, adminUsername);
+        await db.execute('UPDATE admins SET Password = ? WHERE Username = ?', [adminHash, adminUsername]);
     }
 
-    console.log('✅ Database ready');
+    console.log('[DB] MySQL connected and schema ready.');
 }
 
-function seedFromSQL(database) {
+async function seedFromSQL(db) {
     const sqlPath = path.join(__dirname, '..', 'inchbyin_44FitnessCenter.sql');
-    if (!fs.existsSync(sqlPath)) {
-        console.warn('SQL seed file not found — skipping seed');
-        return;
-    }
+    if (!fs.existsSync(sqlPath)) return;
 
-    const sql = fs.readFileSync(sqlPath, 'utf8');
-    const lines = sql.split('\n');
+    const content = fs.readFileSync(sqlPath, 'utf8');
+    // Extract all INSERT INTO statements — the dump may span multiple lines
+    const insertRegex = /INSERT INTO\s+`?\w+`?\s+\([^)]+\)\s+VALUES[\s\S]+?;/g;
+    const statements = content.match(insertRegex) || [];
 
-    let currentStatement = '';
-    let inInsert = false;
-    let count = 0;
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-
-        // Start accumulating an INSERT statement
-        if (!inInsert && trimmed.startsWith('INSERT INTO')) {
-            inInsert = true;
-            currentStatement = '';
-        }
-
-        if (inInsert) {
-            currentStatement += line + '\n';
-
-            if (trimmed.endsWith(';')) {
-                // Convert MySQL backtick identifiers to plain (SQLite accepts backticks too, but be safe)
-                const stmt = currentStatement.replace(/`/g, '"');
-                try {
-                    database.exec(stmt.trim());
-                    count++;
-                } catch (err) {
-                    if (
-                        !err.message.toLowerCase().includes('unique constraint') &&
-                        !err.message.toLowerCase().includes('not unique')
-                    ) {
-                        console.warn('Seed warning:', err.message.slice(0, 120));
-                    }
-                }
-                currentStatement = '';
-                inInsert = false;
+    for (const stmt of statements) {
+        // Skip INSERT statements for tables we manage separately (admins, plans, data_issues)
+        if (/INSERT INTO\s+`?(admins|plans|data_issues)`?/i.test(stmt)) continue;
+        try {
+            await db.query(stmt);
+        } catch (err) {
+            if (err.code !== 'ER_DUP_ENTRY') {
+                console.warn('[Seed] Warning:', err.message.slice(0, 120));
             }
         }
     }
-
-    console.log(`Seeded ${count} INSERT statements from SQL file`);
+    console.log('[DB] Seed from SQL file complete.');
 }
 
 module.exports = { getDB, initDB };

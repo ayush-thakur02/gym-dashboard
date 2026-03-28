@@ -1,7 +1,9 @@
+process.env.TZ = 'Asia/Kolkata';
 require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
+const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { initDB } = require('./db/database');
@@ -10,7 +12,13 @@ const apiRouter = require('./routes/api');
 const app = express();
 const PORT = process.env.PORT || 7860;
 
-// Security headers – allow CDN resources for fonts, charts, icons
+// Trust the first proxy (required for HuggingFace Spaces and similar reverse-proxy environments)
+app.set('trust proxy', 1);
+
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable must be set');
+if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD === 'admin123')
+    console.warn('[SECURITY] ADMIN_PASSWORD is not set or is using the default value. Set a strong password in .env');
+
 app.use(
     helmet({
         contentSecurityPolicy: {
@@ -52,27 +60,18 @@ app.use('/api/', generalLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/checkin', checkinLimiter);
 
-// Body parsing & cookies
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
-
-// Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize database
-initDB();
-
-// Routes
 app.use('/api', apiRouter);
 
-// ── Auth middleware for page routes ──────────────────────
 function requirePageAuth(req, res, next) {
-    const jwt = require('jsonwebtoken');
     const token = req.cookies?.gym_token;
     if (!token) return res.redirect('/admin');
     try {
-        jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
+        jwt.verify(token, process.env.JWT_SECRET);
         next();
     } catch {
         res.clearCookie('gym_token');
@@ -80,7 +79,6 @@ function requirePageAuth(req, res, next) {
     }
 }
 
-// Page routes
 app.get('/', (_req, res) =>
     res.sendFile(path.join(__dirname, 'public', 'index.html'))
 );
@@ -88,12 +86,10 @@ app.get('/admin', (_req, res) =>
     res.sendFile(path.join(__dirname, 'public', 'admin-login.html'))
 );
 
-// Legacy /dashboard → redirect to new overview page
 app.get('/dashboard', requirePageAuth, (_req, res) =>
     res.redirect('/dashboard/overview')
 );
 
-// Dashboard sub-pages (each requires auth)
 const dashPages = ['overview', 'members', 'payments', 'entry', 'member-form', 'payment-form', 'monthly-detail', 'data-issues', 'settings', 'plan-form'];
 dashPages.forEach((page) => {
     app.get(`/dashboard/${page}`, requirePageAuth, (_req, res) =>
@@ -101,17 +97,45 @@ dashPages.forEach((page) => {
     );
 });
 
-// 404 handler
 app.use((_req, res) => {
     res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Global error handler
 app.use((err, _req, res, _next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🏋️  44 Fitness Center running → http://localhost:${PORT}`);
+async function initDBWithRetry(retries = 10, delayMs = 3000) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await initDB();
+            return;
+        } catch (err) {
+            console.error(`[DB] Connection attempt ${attempt}/${retries} failed: ${err.message}`);
+            if (attempt === retries) {
+                console.error('[DB] All retries exhausted. Exiting.');
+                process.exit(1);
+            }
+            await new Promise(r => setTimeout(r, delayMs));
+        }
+    }
+}
+
+async function start() {
+    // Listen immediately so HuggingFace / the proxy detects the container as running
+    await new Promise(resolve =>
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🏋️  44 Fitness Center running → http://localhost:${PORT}`);
+            resolve();
+        })
+    );
+
+    // Initialise DB after the server is already accepting connections
+    await initDBWithRetry();
+}
+
+start().catch(err => {
+    console.error('Startup failed:', err);
+    process.exit(1);
 });

@@ -1,7 +1,3 @@
-/* ══════════════════════════════════════════════════════
-   Overview Page
-   ══════════════════════════════════════════════════════ */
-
 let hourlyChart = null;
 let monthlyChart = null;
 
@@ -75,7 +71,6 @@ async function loadExtendedStats() {
             }).join('');
         }
 
-        // Top members list
         const topEl = document.getElementById('top-members-list');
         if (!ext.topMembers.length) {
             topEl.innerHTML = '<div class="mini-list-empty">No check-ins this month</div>';
@@ -100,7 +95,7 @@ async function loadExtendedStats() {
 
 async function loadHourlyChart() {
     try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const res = await fetch(`/api/stats/hourly?date=${today}`);
         if (!res.ok) return;
         const rows = await res.json();

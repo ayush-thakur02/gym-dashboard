@@ -1,25 +1,18 @@
-/* ══════════════════════════════════════════════════════
-   Member Form Page — Add & Edit
-   ══════════════════════════════════════════════════════ */
-
 document.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
 
     if (id) {
-        // Edit mode
         document.getElementById('form-title').textContent = 'Edit Member';
         document.getElementById('form-subtitle').textContent = 'Update member details below';
         document.getElementById('mobile-title').textContent = 'Edit Member';
         loadMember(id);
     } else {
-        // Add mode
         document.getElementById('m-firstname').focus();
     }
 
     document.getElementById('member-save-btn').addEventListener('click', saveMember);
 
-    // Allow Enter key to submit (not on textarea)
     document.querySelectorAll('.input:not(textarea)').forEach((inp) => {
         inp.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') saveMember();

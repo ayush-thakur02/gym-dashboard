@@ -1,9 +1,4 @@
-/* ══════════════════════════════════════════════════════
-   Dashboard Shared — Auth, Sidebar, Helpers
-   Loaded on every dashboard page.
-   ══════════════════════════════════════════════════════ */
 
-// ── Auth guard + username ────────────────────────────────
 async function initAuth() {
     try {
         const res = await fetch('/api/auth/verify', { credentials: 'include' });
@@ -16,7 +11,6 @@ async function initAuth() {
     }
 }
 
-// ── Active nav item via body[data-page] ──────────────────
 function setActiveNav() {
     const page = document.body.dataset.page || '';
     document.querySelectorAll('.nav-item[data-page]').forEach((link) => {
@@ -24,7 +18,7 @@ function setActiveNav() {
     });
 }
 
-// ── Mobile sidebar ───────────────────────────────────────
+
 function openSidebar() {
     document.getElementById('sidebar').classList.add('open');
     document.getElementById('sidebar-overlay').classList.add('active');
@@ -34,13 +28,11 @@ function closeSidebar() {
     document.getElementById('sidebar-overlay').classList.remove('active');
 }
 
-// ── Logout ───────────────────────────────────────────────
 async function logout() {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { }
     window.location.href = '/admin';
 }
 
-// ── DOM ready boot ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('hamburger')?.addEventListener('click', openSidebar);
     document.getElementById('sidebar-overlay')?.addEventListener('click', closeSidebar);
@@ -48,10 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setActiveNav();
     initAuth();
 });
-
-// ════════════════════════════════════════════════════════
-// Shared Helpers
-// ════════════════════════════════════════════════════════
 
 function fmtDate(str) {
     if (!str) return '—';
@@ -71,17 +59,14 @@ function escHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-// ── Pagination ───────────────────────────────────────────
 function renderPagination(containerId, curPage, total, pageSize, fn) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const totalPages = Math.ceil(total / pageSize);
     if (totalPages <= 1) { container.innerHTML = ''; return; }
 
-    // Store callback; resolve string name to function if needed
     container._pgCallback = typeof fn === 'function' ? fn : window[fn];
 
-    // Attach a single delegated listener once per container
     if (!container._pgListenerAttached) {
         container.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-pg]');

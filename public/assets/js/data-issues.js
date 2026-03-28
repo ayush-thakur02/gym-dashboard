@@ -1,7 +1,3 @@
-/* ══════════════════════════════════════════════════════
-   Data Issues Page
-   ══════════════════════════════════════════════════════ */
-
 document.addEventListener('DOMContentLoaded', () => {
     loadIssues();
     document.getElementById('refresh-btn').addEventListener('click', loadIssues);

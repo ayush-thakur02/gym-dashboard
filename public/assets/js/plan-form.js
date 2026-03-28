@@ -1,7 +1,3 @@
-/* ══════════════════════════════════════════════════════
-   Plan Form Page — Add & Edit
-   ══════════════════════════════════════════════════════ */
-
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
@@ -113,12 +109,4 @@ async function savePlan() {
     } finally {
         btn.disabled = false;
     }
-}
-
-function escHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }

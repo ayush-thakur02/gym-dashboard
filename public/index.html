@@ -1,0 +1,324 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>44 Fitness Center — Check In</title>
+    <link rel="stylesheet" href="/assets/css/global.css" />
+    <style>
+        /* ── Page background ──────────────────────── */
+        body {
+            background: var(--bg-elevated);
+        }
+
+        /* ── Layout ───────────────────────────────── */
+        .page {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        /* ── Top bar ──────────────────────────────── */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .topbar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .topbar-logo svg {
+            color: var(--accent);
+        }
+
+        /* ── Card ─────────────────────────────────── */
+        .card {
+            width: 100%;
+            max-width: 440px;
+            border-radius: var(--radius-2xl);
+            padding: 40px 36px;
+            text-align: center;
+            animation: cardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            background: var(--bg-surface);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+        }
+
+        @keyframes cardIn {
+            from {
+                opacity: 0;
+                transform: translateY(24px) scale(0.96);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .gym-icon {
+            width: 68px;
+            height: 68px;
+            background: var(--accent-muted);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            color: var(--accent);
+            /* box-shadow: 0 0 32px rgba(59, 130, 246, 0.2); */
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        /* ── Phone input ──────────────────────────── */
+        .phone-wrap {
+            position: relative;
+            margin-bottom: 14px;
+        }
+
+        .phone-flag {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            pointer-events: none;
+            border-right: 1px solid var(--glass-border);
+            padding-right: 10px;
+        }
+
+        #phone-input {
+            padding-left: 68px;
+            font-size: 1.125rem;
+            height: 52px;
+            border-radius: var(--radius-lg);
+            letter-spacing: 0.04em;
+            text-align: left;
+        }
+
+        #phone-input:focus {
+            /* box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18); */
+        }
+
+        #checkin-btn {
+            height: 52px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--radius-lg);
+            letter-spacing: 0.01em;
+            width: 100%;
+            background: var(--accent);
+            /* box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15); */
+            transition: all 0.2s;
+        }
+
+        #checkin-btn:hover {
+            transform: translateY(-2px);
+            background: var(--accent-hover);
+            /* box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15); */
+        }
+
+        #checkin-btn:active {
+            transform: translateY(0);
+        }
+
+        /* ── Success state ────────────────────────── */
+        .success-card {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 28px 20px;
+            background: rgba(22, 163, 74, 0.06);
+            border: 1px solid rgba(22, 163, 74, 0.2);
+            border-radius: var(--radius-xl);
+            margin-top: 16px;
+            animation: cardIn 0.4s ease both;
+        }
+
+        .success-icon {
+            width: 52px;
+            height: 52px;
+            background: var(--success-muted);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--success);
+        }
+
+        .success-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .success-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            text-align: center;
+        }
+
+        /* ── Error ────────────────────────────────── */
+        #error-msg {
+            display: none;
+            margin-top: 12px;
+            padding: 11px 14px;
+            background: var(--danger-muted);
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            color: var(--danger);
+            text-align: left;
+        }
+
+        /* ── Footer ───────────────────────────────── */
+        .card-footer {
+            margin-top: 28px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .card-footer a {
+            color: var(--text-secondary);
+        }
+
+        .card-footer a:hover {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toast-container"></div>
+
+    <!-- Top bar -->
+    <header class="topbar">
+        <div class="topbar-logo">
+            <!-- Dumbbell SVG icon -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path
+                    d="M6 4v16M18 4v16M6 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2M18 9h2a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-2M6 7h12v10H6z" />
+            </svg>
+            44 Fitness Center
+        </div>
+        <a href="/admin" class="btn btn-ghost btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            Admin
+        </a>
+    </header>
+
+    <!-- Main content -->
+    <main class="page">
+        <div class="card">
+            <!-- Gym icon -->
+            <div class="gym-icon">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M6 4v16M18 4v16M6 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2M18 9h2a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-2M6 7h12v10H6z" />
+                </svg>
+            </div>
+
+            <h1>Welcome Back</h1>
+            <p class="subtitle">Enter your phone number to check in for today's session.</p>
+
+            <!-- Phone input -->
+            <div class="phone-wrap">
+                <div class="phone-flag">
+                    🇮🇳 +91
+                </div>
+                <input id="phone-input" class="input" type="tel" placeholder="98765 43210" maxlength="10"
+                    inputmode="numeric" pattern="[0-9]*" autocomplete="tel" />
+            </div>
+
+            <!-- Error message -->
+            <div id="error-msg"></div>
+
+            <!-- Check in button -->
+            <button id="checkin-btn" class="btn btn-primary btn-lg btn-full" onclick="checkIn()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+                Check In
+            </button>
+
+            <!-- Success state -->
+            <div class="success-card" id="success-card">
+                <div class="success-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                </div>
+                <div class="success-name" id="success-name"></div>
+                <div class="success-meta" id="success-meta"></div>
+            </div>
+
+            <div class="card-footer">
+                Not registered? Contact the front desk.
+                <br />
+                Built by <a href="https://linkedin.com/in/ayush-thakur02" target="_blank"
+                    rel="noopener">@AyushThakur</a>
+            </div>
+        </div>
+    </main>
+
+    <script src="/assets/js/toast.js"></script>
+    <script src="/assets/js/index.js"></script>
+</body>
+
+</html>

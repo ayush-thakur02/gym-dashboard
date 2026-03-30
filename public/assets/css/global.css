@@ -141,18 +141,38 @@ svg {
     background: var(--accent);
     color: #fff;
     border-color: rgba(255, 255, 255, 0.1);
-    /* box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), var(--accent-glow); */
 }
 
 .btn-primary:hover {
     background: var(--accent-hover);
     color: #fff;
-    /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 28px rgba(59, 130, 246, 0.45); */
     transform: translateY(-1px);
 }
 
 .btn-primary:active {
     transform: translateY(0);
+}
+
+.btn-secondary {
+    background: var(--glass-bg);
+    color: var(--text-primary);
+    border-color: var(--glass-border);
+}
+
+.btn-secondary:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-strong);
+    transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .btn-ghost {

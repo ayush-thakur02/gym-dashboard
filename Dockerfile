@@ -2,13 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY --chown=node:node package*.json ./
 RUN npm ci --only=production
 
-COPY . .
+COPY --chown=node:node . .
 
-RUN chown -R 1000:1000 /app
-USER 1000
+USER node
 
 EXPOSE 7860
 

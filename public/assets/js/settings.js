@@ -2,7 +2,45 @@ let allPlans = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     loadPlans();
+    document.getElementById('sql-backup-btn')?.addEventListener('click', downloadSqlBackup);
 });
+
+async function downloadSqlBackup() {
+    const btn = document.getElementById('sql-backup-btn');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite;">
+        <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+        <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+    </svg> Exporting…`;
+
+    try {
+        const res = await fetch('/api/backup/sql');
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            showToast(data.error || 'Backup failed', 'error');
+            return;
+        }
+        const blob = await res.blob();
+        const filename = (res.headers.get('Content-Disposition') || '')
+            .match(/filename="?([^"]+)"?/)?.[1] || '44fitness_backup.sql';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Backup downloaded', 'success');
+    } catch {
+        showToast('Network error — backup failed', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+}
 
 async function loadPlans() {
     const tbody = document.getElementById('plans-tbody');

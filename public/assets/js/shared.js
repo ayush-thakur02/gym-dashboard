@@ -39,7 +39,72 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-btn')?.addEventListener('click', logout);
     setActiveNav();
     initAuth();
+    initIdleTimer();
 });
+
+// ── Idle auto-disconnect ────────────────────────────────────
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;   // 30 minutes
+const IDLE_WARN_MS = 2 * 60 * 1000;   // warn 2 min before logout
+
+let _idleTimer = null;
+let _idleWarnTimer = null;
+let _idleWarnShown = false;
+
+function _resetIdleTimer() {
+    clearTimeout(_idleTimer);
+    clearTimeout(_idleWarnTimer);
+    if (_idleWarnShown) {
+        _idleWarnShown = false;
+        document.getElementById('idle-warn-overlay')?.remove();
+    }
+    _idleWarnTimer = setTimeout(_showIdleWarning, IDLE_TIMEOUT_MS - IDLE_WARN_MS);
+    _idleTimer = setTimeout(_idleLogout, IDLE_TIMEOUT_MS);
+}
+
+function _showIdleWarning() {
+    if (document.getElementById('idle-warn-overlay')) return;
+    _idleWarnShown = true;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'idle-warn-overlay';
+    overlay.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;' +
+        'display:flex;align-items:center;justify-content:center;';
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:32px 36px;max-width:380px;
+                    width:90%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,0.2);">
+            <div style="font-size:36px;margin-bottom:14px;">⏱️</div>
+            <h3 style="margin:0 0 8px;font-size:17px;font-weight:600;color:#1a1a1e;">
+                Session Expiring Soon
+            </h3>
+            <p style="margin:0 0 22px;font-size:13px;color:#666;line-height:1.5;">
+                You've been inactive for a while.<br>
+                You'll be signed out in <strong>2 minutes</strong>.
+            </p>
+            <button id="idle-stay-btn"
+                style="background:#6c47ff;color:#fff;border:none;padding:11px 28px;
+                       border-radius:9px;font-size:14px;cursor:pointer;font-weight:600;
+                       transition:opacity .15s;">
+                Stay Signed In
+            </button>
+        </div>`;
+
+    document.body.appendChild(overlay);
+    document.getElementById('idle-stay-btn').addEventListener('click', _resetIdleTimer);
+}
+
+async function _idleLogout() {
+    document.getElementById('idle-warn-overlay')?.remove();
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    window.location.href = '/admin?reason=idle';
+}
+
+function initIdleTimer() {
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    events.forEach(e => document.addEventListener(e, _resetIdleTimer, { passive: true }));
+    _resetIdleTimer();
+}
 
 function fmtDate(str) {
     if (!str) return '—';

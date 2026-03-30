@@ -14,8 +14,8 @@ function getDB() {
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,
             waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0,
+            connectionLimit: 2,
+            queueLimit: 100,
             timezone: '+05:30',
             dateStrings: true,
         });
